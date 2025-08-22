@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador de Buracos Negros</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: radial-gradient(ellipse at center, #0a0a0a 0%, #000000 70%, #1a0033 100%);
+            color: white;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 140, 0, 0.3);
+            box-shadow: 0 0 30px rgba(255, 140, 0, 0.1);
+            min-width: 300px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ff8c00;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+        }
+
+        .value-display {
+            font-size: 12px;
+            color: #ffd700;
+            text-align: right;
+        }
+
+        button {
+            background: linear-gradient(45deg, #ff4500, #ff6347, #ff8c00);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(255, 69, 0, 0.3);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 25px rgba(255, 69, 0, 0.6);
+            background: linear-gradient(45deg, #ff6347, #ff8c00, #ffa500);
+        }
+
+        button.active {
+            background: linear-gradient(45deg, #00ff00, #32cd32, #7fff00);
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.5);
+        }
+
+        #info {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 140, 0, 0.3);
+            box-shadow: 0 0 30px rgba(255, 140, 0, 0.1);
+            max-width: 250px;
+        }
+
+        .info-item {
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .info-label {
+            color: #ff8c00;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(255, 140, 0, 0.5);
+        }
+
+        #title {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 140, 0, 0.8);
+        }
+
+        .particle-count {
+            background: rgba(255, 215, 0, 0.15);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 215, 0, 0.4);
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+            background: transparent;
+        }
+
+        input[type="range"]::-webkit-slider-track {
+            background: linear-gradient(90deg, #ff4500, #ff8c00);
+            height: 4px;
+            border-radius: 2px;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            background: #ffd700;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+    </style>
+</head>
+
+<body>
+    <div id="container">
+
+        <div id="controls">
+            <div class="control-group">
+                <label for="mass">Massa do Buraco Negro</label>
+                <input type="range" id="mass" min="1" max="50" value="10" step="1">
+                <div class="value-display" id="massValue">10 massas solares</div>
+            </div>
+
+            <div class="control-group">
+                <label for="particleSpeed">Velocidade das Partículas</label>
+                <input type="range" id="particleSpeed" min="0.1" max="2.0" value="0.5" step="0.1">
+                <div class="value-display" id="speedValue">0.5x</div>
+            </div>
+
+            <div class="control-group">
+                <label for="particleCount">Número de Partículas</label>
+                <input type="range" id="particleCount" min="500" max="3000" value="1000" step="100">
+                <div class="value-display particle-count" id="countValue">1000 partículas</div>
+            </div>
+
+            <div class="control-group">
+                <button onclick="addMatter()">Adicionar Matéria</button>
+                <button onclick="resetSimulation()">Resetar</button>
+            </div>
+
+            <div class="control-group">
+                <button id="diskBtn" onclick="toggleAccretionDisk()">Disco de Acreção</button>
+                <button id="jetBtn" onclick="toggleJets()">Jatos Relativísticos</button>
+            </div>
+        </div>
+
+        <div id="info">
+            <div class="info-item">
+                <span class="info-label">Raio de Schwarzschild:</span>
+                <span id="schwarzschildRadius">29.5 km</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Horizonte de Eventos:</span>
+                <span id="eventHorizon">Visível</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Partículas Ativas:</span>
+                <span id="activeParticles">1000</span>
+            </div>
+            <div class="info-item">
+                <span class="info-label">Temperatura:</span>
+                <span id="temperature">6.1 × 10⁻⁸ K</span>
+            </div>
+            <div class="info-item" id="jetInfo" style="display: none;">
+                <span class="info-label">Velocidade dos Jatos:</span>
+                <span id="jetSpeed">0.95c</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, blackHole, particles = [];
+        let accretionDisk = [], jets = [];
+        let showAccretionDisk = true, showJets = false;
+        let animationId;
+
+        // Parâmetros físicos
+        let blackHoleMass = 10;
+        let particleSpeed = 0.5;
+        let particleCount = 1000;
+
+        function init() {
+            // Configurar cena com fundo espacial
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 50, 200);
+
+            camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000);
+            document.getElementById('container').appendChild(renderer.domElement);
+
+            // Adicionar estrelas de fundo
+            createStarField();
+
+            // Criar buraco negro (esfera completamente negra)
+            const blackHoleGeometry = new THREE.SphereGeometry(blackHoleMass * 0.3, 32, 32);
+            const blackHoleMaterial = new THREE.MeshBasicMaterial({
+                color: 0x000000,
+                transparent: false
+            });
+            blackHole = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
+            scene.add(blackHole);
+
+            // Adicionar horizonte de eventos (anel brilhante laranja)
+            const ringGeometry = new THREE.RingGeometry(blackHoleMass * 0.29, blackHoleMass * 1.31, 64);
+            const ringMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff4500,
+                transparent: true,
+                opacity: 0.6,
+                side: THREE.DoubleSide
+            });
+            const eventHorizonRing = new THREE.Mesh(ringGeometry, ringMaterial);
+            eventHorizonRing.rotation.x = Math.PI / 2;
+            scene.add(eventHorizonRing);
+
+            // Adicionar glow effect ao buraco negro
+            const glowGeometry = new THREE.SphereGeometry(blackHoleMass * 1.5, 32, 32);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.BackSide
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            scene.add(glow);
+
+            // Criar partículas
+            createParticles();
+
+            // Criar disco de acreção
+            createAccretionDisk();
+
+            // Atualizar botões
+            updateButtonStates();
+
+            // Posicionar câmera
+            camera.position.set(0, 20, 50);
+            camera.lookAt(0, 0, 0);
+
+            animate();
+        }
+
+        function createStarField() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 2000;
+            const positions = new Float32Array(starCount * 3);
+
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 400;     // x
+                positions[i + 1] = (Math.random() - 0.5) * 400; // y
+                positions[i + 2] = (Math.random() - 0.5) * 400; // z
+            }
+
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                transparent: true,
+                opacity: 0.8
+            });
+
+            const stars = new THREE.Points(starGeometry, starMaterial);
+            scene.add(stars);
+        }
+
+        function createParticles() {
+            // Limpar partículas existentes
+            particles.forEach(particle => scene.remove(particle.mesh));
+            particles = [];
+
+            for (let i = 0; i < particleCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+
+                // Cores baseadas na temperatura (azul = frio, vermelho = quente)
+                const hue = Math.random() * 0.15; // 0 = vermelho, 0.15 = laranja
+                const material = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color().setHSL(hue, 1, 0.7)
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                // Posição inicial em órbita
+                const radius = Math.random() * 25 + 15;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = (Math.random() - 0.5) * Math.PI * 0.3;
+
+                mesh.position.set(
+                    radius * Math.cos(theta) * Math.cos(phi),
+                    radius * Math.sin(phi) * 0.5,
+                    radius * Math.sin(theta) * Math.cos(phi)
+                );
+
+                // Velocidade orbital
+                const orbitalSpeed = Math.sqrt(blackHoleMass * 0.5 / radius) * particleSpeed;
+                const velocity = new THREE.Vector3(
+                    -Math.sin(theta) * orbitalSpeed,
+                    0,
+                    Math.cos(theta) * orbitalSpeed
+                );
+
+                particles.push({
+                    mesh: mesh,
+                    velocity: velocity,
+                    mass: 1,
+                    trail: [],
+                    originalHue: hue
+                });
+
+                scene.add(mesh);
+            }
+        }
+
+        function createAccretionDisk() {
+            accretionDisk.forEach(disk => scene.remove(disk.mesh));
+            accretionDisk = [];
+
+            if (!showAccretionDisk) return;
+
+            for (let i = 0; i < 300; i++) {
+                const geometry = new THREE.SphereGeometry(0.05, 6, 6);
+
+                // Gradiente de temperatura: azul (frio) -> branco -> laranja -> vermelho (quente)
+                const radius = blackHoleMass * 1.5 + Math.random() * 15;
+                const temperature = 1 / radius; // Mais quente próximo ao centro
+
+                let color;
+                if (temperature > 0.15) {
+                    // Muito quente - branco/azul
+                    color = new THREE.Color().setHSL(0.6, 0.3, 0.9);
+                } else if (temperature > 0.1) {
+                    // Quente - laranja/amarelo
+                    color = new THREE.Color().setHSL(0.1, 1, 0.8);
+                } else {
+                    // Morno - vermelho/laranja
+                    color = new THREE.Color().setHSL(0.05, 1, 0.6);
+                }
+
+                const material = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                const theta = Math.random() * Math.PI * 2;
+
+                mesh.position.set(
+                    radius * Math.cos(theta),
+                    (Math.random() - 0.5) * 1,
+                    radius * Math.sin(theta)
+                );
+
+                accretionDisk.push({
+                    mesh: mesh,
+                    baseTemperature: temperature
+                });
+                scene.add(mesh);
+            }
+        }
+
+        function createJets() {
+            // Limpar jatos existentes
+            jets.forEach(jet => {
+                scene.remove(jet.mesh);
+            });
+            jets = [];
+
+            if (!showJets) return;
+
+            // Criar jatos nos polos norte e sul
+            for (let pole = 0; pole < 2; pole++) {
+                const jetDirection = pole === 0 ? 1 : -1; // Norte: +Y, Sul: -Y
+
+                // Criar múltiplas partículas para cada jato em formato de funil
+                for (let i = 0; i < 150; i++) {
+                    const distanceFactor = i / 150; // 0 a 1
+
+                    // Tamanho diminui conforme se afasta para criar efeito de funil
+                    const particleSize = 0.2 - distanceFactor * 0.15;
+                    const geometry = new THREE.SphereGeometry(particleSize, 8, 8);
+
+                    // Cores dos jatos: gradiente azul-branco mais intenso
+                    const hue = 0.55 + Math.random() * 0.1; // Variação de azul
+                    const saturation = Math.max(0.5, 0.9 - distanceFactor * 0.3);
+                    const lightness = Math.min(0.8, 0.4 + distanceFactor * 0.4);
+
+                    const material = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color().setHSL(hue, saturation, lightness),
+                        transparent: true,
+                        opacity: Math.max(0.3, 1.0 - distanceFactor * 0.6)
+                    });
+                    const mesh = new THREE.Mesh(geometry, material);
+
+                    // Posição inicial em formato de funil
+                    const startRadius = blackHoleMass * 0.3;
+                    // Spread aumenta gradualmente para criar formato de funil
+                    const spread = 0.2 + Math.pow(distanceFactor, 1.5) * 3.0;
+
+                    // Ângulo para distribuição circular
+                    const angle = (i % 10) * (Math.PI * 2 / 10) + Math.random() * 0.2;
+
+                    mesh.position.set(
+                        Math.cos(angle) * spread,
+                        jetDirection * (startRadius + distanceFactor * 8),
+                        Math.sin(angle) * spread
+                    );
+
+                    // Velocidade ajustada para movimento em funil
+                    const jetSpeed = 4.0 * (1 - distanceFactor * 0.3);
+                    const spiralFactor = 0.5 + distanceFactor * 0.3;
+
+                    const velocity = new THREE.Vector3(
+                        -mesh.position.x * spiralFactor * 0.1,
+                        jetDirection * jetSpeed,
+                        -mesh.position.z * spiralFactor * 0.1
+                    );
+
+                    jets.push({
+                        mesh: mesh,
+                        velocity: velocity,
+                        age: 0,
+                        maxAge: 150 + Math.random() * 50 + distanceFactor * 150,
+                        pole: pole,
+                        initialPos: mesh.position.clone()
+                    });
+
+                    scene.add(mesh);
+                }
+            }
+        }
+
+        function updatePhysics() {
+            const G = 0.5;
+            const dt = 0.016;
+
+            // Atualizar partículas do disco
+            particles.forEach((particle, index) => {
+                const pos = particle.mesh.position;
+                const distance = pos.length();
+
+                // Verificar absorção
+                if (distance < blackHoleMass * 0.4) {
+                    scene.remove(particle.mesh);
+                    particles.splice(index, 1);
+                    return;
+                }
+
+                // Força gravitacional
+                const force = G * blackHoleMass / (distance * distance);
+                const direction = pos.clone().normalize().multiplyScalar(-force);
+
+                particle.velocity.add(direction.multiplyScalar(dt));
+                particle.velocity.multiplyScalar(0.999);
+                pos.add(particle.velocity.clone().multiplyScalar(dt));
+
+                // Efeitos de aquecimento por atrito gravitacional
+                if (distance < blackHoleMass * 5) {
+                    const heatFactor = 1 - (distance / (blackHoleMass * 5));
+
+                    let newHue, saturation, lightness;
+
+                    if (heatFactor > 0.8) {
+                        newHue = 0.6;
+                        saturation = 0.3;
+                        lightness = 0.95;
+                    } else if (heatFactor > 0.6) {
+                        newHue = 0.15;
+                        saturation = 0.5;
+                        lightness = 0.9;
+                    } else if (heatFactor > 0.3) {
+                        newHue = 0.08;
+                        saturation = 1;
+                        lightness = 0.7;
+                    } else {
+                        newHue = particle.originalHue;
+                        saturation = 1;
+                        lightness = 0.6;
+                    }
+
+                    particle.mesh.material.color.setHSL(newHue, saturation, lightness);
+                }
+            });
+
+            // Atualizar jatos relativísticos
+            if (showJets) {
+                jets.forEach((jet, index) => {
+                    jet.age++;
+
+                    // Remover jatos antigos
+                    if (jet.age > jet.maxAge) {
+                        scene.remove(jet.mesh);
+                        jets.splice(index, 1);
+                        return;
+                    }
+
+                    // Atualizar posição
+                    jet.mesh.position.add(jet.velocity.clone().multiplyScalar(dt));
+
+                    // Efeito de fade com a idade
+                    const fadeRatio = 1 - (jet.age / jet.maxAge);
+                    jet.mesh.material.opacity = fadeRatio * 0.8;
+
+                    // Mudança de cor com a distância (efeito Doppler simulado)
+                    const distance = jet.mesh.position.length();
+                    if (distance > 20) {
+                        // Mais distante = mais vermelho (redshift)
+                        jet.mesh.material.color.setHSL(0.8, 1, 0.7);
+                    } else {
+                        // Mais próximo = mais azul (blueshift)
+                        jet.mesh.material.color.setHSL(0.6, 1, 0.9);
+                    }
+                });
+
+                // Gerar novas partículas de jato continuamente
+                if (Math.random() < 0.3) { // 30% de chance por frame
+                    for (let pole = 0; pole < 2; pole++) {
+                        const jetDirection = pole === 0 ? 1 : -1;
+
+                        const geometry = new THREE.SphereGeometry(0.08, 6, 6);
+                        const material = new THREE.MeshBasicMaterial({
+                            color: new THREE.Color().setHSL(0.6, 1, 0.9),
+                            transparent: true,
+                            opacity: 0.8
+                        });
+                        const mesh = new THREE.Mesh(geometry, material);
+
+                        const startRadius = blackHoleMass * 0.5;
+                        const spread = 0.3;
+
+                        mesh.position.set(
+                            (Math.random() - 0.5) * spread,
+                            jetDirection * startRadius,
+                            (Math.random() - 0.5) * spread
+                        );
+
+                        const jetSpeed = 3.0;
+                        const velocity = new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.1,
+                            jetDirection * jetSpeed,
+                            (Math.random() - 0.5) * 0.1
+                        );
+
+                        jets.push({
+                            mesh: mesh,
+                            velocity: velocity,
+                            age: 0,
+                            maxAge: 200 + Math.random() * 100,
+                            pole: pole
+                        });
+
+                        scene.add(mesh);
+                    }
+                }
+            }
+
+            // Animar disco de acreção
+            if (showAccretionDisk) {
+                accretionDisk.forEach((diskItem, i) => {
+                    const disk = diskItem.mesh;
+                    const radius = new THREE.Vector2(disk.position.x, disk.position.z).length();
+                    const angularVelocity = Math.sqrt(blackHoleMass / (radius * radius * radius)) * 0.05;
+
+                    const angle = Math.atan2(disk.position.z, disk.position.x) + angularVelocity;
+                    disk.position.x = radius * Math.cos(angle);
+                    disk.position.z = radius * Math.sin(angle);
+
+                    // Efeito de aquecimento dinâmico
+                    const heat = diskItem.baseTemperature + Math.sin(Date.now() * 0.01 + i) * 0.02;
+
+                    if (heat > 0.15) {
+                        disk.material.color.setHSL(0.6, 0.4, 0.9);
+                    } else if (heat > 0.1) {
+                        disk.material.color.setHSL(0.1, 1, 0.8);
+                    } else {
+                        disk.material.color.setHSL(0.05, 1, 0.6);
+                    }
+                });
+            }
+        }
+
+        function animate() {
+            animationId = requestAnimationFrame(animate);
+
+            updatePhysics();
+
+            // Rotação suave da câmera
+            const time = Date.now() * 0.0002;
+            camera.position.x = Math.cos(time) * 60;
+            camera.position.z = Math.sin(time) * 60;
+            camera.position.y = 25;
+            camera.lookAt(scene.position);
+
+            // Rotação do buraco negro
+            blackHole.rotation.y += 0.01;
+
+            // Atualizar informações
+            document.getElementById('activeParticles').textContent = particles.length;
+
+            renderer.render(scene, camera);
+        }
+
+        function updateButtonStates() {
+            const diskBtn = document.getElementById('diskBtn');
+            const jetBtn = document.getElementById('jetBtn');
+            const jetInfo = document.getElementById('jetInfo');
+
+            if (showAccretionDisk) {
+                diskBtn.classList.add('active');
+            } else {
+                diskBtn.classList.remove('active');
+            }
+
+            if (showJets) {
+                jetBtn.classList.add('active');
+                jetInfo.style.display = 'block';
+            } else {
+                jetBtn.classList.remove('active');
+                jetInfo.style.display = 'none';
+            }
+        }
+
+        // Funções de controle
+        document.getElementById('mass').addEventListener('input', (e) => {
+            blackHoleMass = parseInt(e.target.value);
+            document.getElementById('massValue').textContent = `${blackHoleMass} massas solares`;
+
+            // Atualizar tamanho do buraco negro
+            blackHole.scale.setScalar(blackHoleMass * 0.1);
+
+            // Calcular e exibir raio de Schwarzschild
+            const rs = 2.95 * blackHoleMass;
+            document.getElementById('schwarzschildRadius').textContent = `${rs.toFixed(1)} km`;
+
+            // Temperatura do buraco negro
+            const temp = 6.1e-8 / blackHoleMass;
+            document.getElementById('temperature').textContent = `${temp.toExponential(1)} K`;
+        });
+
+        document.getElementById('particleSpeed').addEventListener('input', (e) => {
+            particleSpeed = parseFloat(e.target.value);
+            document.getElementById('speedValue').textContent = `${particleSpeed}x`;
+        });
+
+        document.getElementById('particleCount').addEventListener('input', (e) => {
+            particleCount = parseInt(e.target.value);
+            document.getElementById('countValue').textContent = `${particleCount} partículas`;
+            createParticles();
+        });
+
+        function addMatter() {
+            const matterCount = 100;
+            for (let i = 0; i < matterCount; i++) {
+                const geometry = new THREE.SphereGeometry(0.15, 8, 8);
+                const hue = Math.random() * 0.1; // Vermelho/laranja
+                const material = new THREE.MeshBasicMaterial({
+                    color: new THREE.Color().setHSL(hue, 1, 0.7)
+                });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                const radius = Math.random() * 10 + 8;
+                const theta = Math.random() * Math.PI * 2;
+
+                mesh.position.set(
+                    radius * Math.cos(theta),
+                    (Math.random() - 0.5) * 2,
+                    radius * Math.sin(theta)
+                );
+
+                const orbitalSpeed = Math.sqrt(blackHoleMass * 0.3 / radius) * particleSpeed;
+                const velocity = new THREE.Vector3(
+                    -Math.sin(theta) * orbitalSpeed,
+                    0,
+                    Math.cos(theta) * orbitalSpeed
+                );
+
+                particles.push({
+                    mesh: mesh,
+                    velocity: velocity,
+                    mass: 1,
+                    trail: [],
+                    originalHue: hue
+                });
+
+                scene.add(mesh);
+            }
+        }
+
+        function resetSimulation() {
+            particles.forEach(particle => scene.remove(particle.mesh));
+            particles = [];
+            jets.forEach(jet => scene.remove(jet.mesh));
+            jets = [];
+            createParticles();
+            updateButtonStates();
+        }
+
+        function toggleAccretionDisk() {
+            showAccretionDisk = !showAccretionDisk;
+            if (showAccretionDisk) {
+                createAccretionDisk();
+            } else {
+                accretionDisk.forEach(diskItem => scene.remove(diskItem.mesh));
+                accretionDisk = [];
+            }
+            updateButtonStates();
+        }
+
+        function toggleJets() {
+            showJets = !showJets;
+            if (showJets) {
+                createJets();
+            } else {
+                jets.forEach(jet => scene.remove(jet.mesh));
+                jets = [];
+            }
+            updateButtonStates();
+        }
+
+        // Redimensionar na mudança de janela
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Inicializar simulação
+        init();
+    </script>
+</body>
+
+</html>
